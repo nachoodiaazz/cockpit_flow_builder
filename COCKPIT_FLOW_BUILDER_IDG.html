@@ -1,0 +1,2156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cockpit Flow Builder</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+      background: #1a1a1a;
+      color: #e0e0e0;
+      overflow: hidden;
+    }
+
+    #root {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .app-container {
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .sidebar {
+      width: 320px;
+      background: #242424;
+      border-right: 1px solid #333;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .main-canvas-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+      background: #1a1a1a;
+    }
+
+    .section {
+      background: #2a2a2a;
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #fff;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .input-group {
+      margin-bottom: 12px;
+    }
+
+    .input-group label {
+      display: block;
+      font-size: 12px;
+      margin-bottom: 6px;
+      color: #aaa;
+    }
+
+    .input-group input,
+    .input-group select {
+      width: 100%;
+      padding: 8px;
+      background: #1a1a1a;
+      border: 1px solid #444;
+      border-radius: 4px;
+      color: #e0e0e0;
+      font-size: 13px;
+    }
+
+    .input-group input:focus,
+    .input-group select:focus {
+      outline: none;
+      border-color: #666;
+    }
+
+    .role-selector {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .role-btn {
+      flex: 1;
+      padding: 10px;
+      border: 2px solid transparent;
+      background: #1a1a1a;
+      color: #e0e0e0;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+
+    .role-btn:hover {
+      background: #333;
+    }
+
+    .role-btn.active {
+      border-color: currentColor;
+    }
+
+    .color-picker-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .color-picker-group label {
+      flex: 1;
+      font-size: 12px;
+      color: #aaa;
+    }
+
+    .color-picker-group input[type="color"] {
+      width: 50px;
+      height: 32px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 10px;
+      background: #3a3a3a;
+      border: 1px solid #555;
+      color: #e0e0e0;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s;
+      margin-bottom: 8px;
+    }
+
+    .btn:hover {
+      background: #4a4a4a;
+    }
+
+    .btn-primary {
+      background: #0066cc;
+      border-color: #0066cc;
+    }
+
+    .btn-primary:hover {
+      background: #0052a3;
+    }
+
+    .canvas-container {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      cursor: grab;
+    }
+
+    .canvas-container.panning {
+      cursor: grabbing;
+    }
+
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    .zoom-controls {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: #242424;
+      border: 1px solid #444;
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 10;
+    }
+
+    .zoom-display {
+      font-size: 13px;
+      color: #aaa;
+      text-align: center;
+    }
+
+    .zoom-btn {
+      width: 40px;
+      height: 40px;
+      background: #3a3a3a;
+      border: 1px solid #555;
+      color: #e0e0e0;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .zoom-btn:hover {
+      background: #4a4a4a;
+    }
+
+    .step-list {
+      max-height: 300px;
+      overflow-y: auto;
+      margin-top: 8px;
+    }
+
+    .step-item {
+      background: #1a1a1a;
+      padding: 10px;
+      margin-bottom: 6px;
+      border-radius: 4px;
+      border-left: 3px solid;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .step-item:hover {
+      background: #222;
+    }
+
+    .step-item.selected {
+      background: #333;
+    }
+
+    .step-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .step-number {
+      font-weight: 600;
+      font-size: 12px;
+    }
+
+    .step-delete {
+      background: #d32f2f;
+      border: none;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 11px;
+    }
+
+    .step-name {
+      font-size: 12px;
+      color: #ccc;
+    }
+
+    .step-edit-input {
+      width: 100%;
+      padding: 6px;
+      background: #2a2a2a;
+      border: 1px solid #555;
+      color: #e0e0e0;
+      border-radius: 3px;
+      font-size: 12px;
+      margin-top: 4px;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal {
+      background: #242424;
+      border: 1px solid #444;
+      border-radius: 8px;
+      padding: 24px;
+      max-width: 600px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .modal h2 {
+      margin-bottom: 16px;
+      color: #fff;
+    }
+
+    .modal-close {
+      float: right;
+      background: none;
+      border: none;
+      color: #aaa;
+      font-size: 24px;
+      cursor: pointer;
+      padding: 0;
+      width: 30px;
+      height: 30px;
+    }
+
+    .shortcut-list {
+      list-style: none;
+      margin-top: 12px;
+    }
+
+    .shortcut-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #333;
+    }
+
+    .shortcut-key {
+      background: #1a1a1a;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+    }
+
+    .export-textarea {
+      width: 100%;
+      height: 300px;
+      background: #1a1a1a;
+      border: 1px solid #444;
+      color: #e0e0e0;
+      padding: 12px;
+      font-family: monospace;
+      font-size: 12px;
+      border-radius: 4px;
+      margin-top: 12px;
+    }
+
+    .template-list {
+      max-height: 150px;
+      overflow-y: auto;
+      margin-top: 8px;
+    }
+
+    .template-item {
+      background: #1a1a1a;
+      padding: 8px;
+      margin-bottom: 6px;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .template-item:hover {
+      background: #222;
+    }
+
+    .template-delete {
+      background: #d32f2f;
+      border: none;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 11px;
+    }
+
+    .file-input-label {
+      display: block;
+      width: 100%;
+      padding: 10px;
+      background: #3a3a3a;
+      border: 1px solid #555;
+      color: #e0e0e0;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      text-align: center;
+      transition: all 0.2s;
+    }
+
+    .file-input-label:hover {
+      background: #4a4a4a;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    .image-list {
+      margin-top: 8px;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+
+    .image-item {
+      background: #1a1a1a;
+      padding: 8px;
+      margin-bottom: 6px;
+      border-radius: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+    }
+
+    .image-delete {
+      background: #d32f2f;
+      border: none;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback } = React;
+
+    // Utility functions
+    const escapeLatex = (text) => {
+      return text
+        .replace(/\\/g, '\\textbackslash{}')
+        .replace(/[&%$#_{}]/g, '\\$&')
+        .replace(/~/g, '\\textasciitilde{}')
+        .replace(/\^/g, '\\textasciicircum{}');
+    };
+
+    const downloadFile = (content, filename, type = 'text/plain') => {
+      const blob = new Blob([content], { type });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    };
+
+    // Check if point is near resize handle
+    const isNearResizeHandle = (x, y, img, zoom, handleSize = 15) => {
+      const corners = [
+        { name: 'se', x: img.x + img.width, y: img.y + img.height },
+        { name: 'sw', x: img.x, y: img.y + img.height },
+        { name: 'ne', x: img.x + img.width, y: img.y },
+        { name: 'nw', x: img.x, y: img.y }
+      ];
+      
+      for (let corner of corners) {
+        const dist = Math.sqrt((x - corner.x) ** 2 + (y - corner.y) ** 2);
+        if (dist < handleSize / zoom) {
+          return corner.name;
+        }
+      }
+      return null;
+    };
+
+    // Main App Component
+    function App() {
+      const [flowName, setFlowName] = useState('Untitled Flow');
+      const [aircraftType, setAircraftType] = useState('');
+      const [activeRole, setActiveRole] = useState('PF');
+      const [roles, setRoles] = useState({
+        PF: { color: '#3b82f6', steps: [], curves: [] },
+        PM: { color: '#f97316', steps: [], curves: [] }
+      });
+      const [images, setImages] = useState([]);
+      const [selectedStep, setSelectedStep] = useState(null);
+      const [selectedImage, setSelectedImage] = useState(null);
+      const [zoom, setZoom] = useState(1);
+      const [pan, setPan] = useState({ x: 0, y: 0 });
+      const [isPanning, setIsPanning] = useState(false);
+      const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+      const [showHelp, setShowHelp] = useState(false);
+      const [showLatexExport, setShowLatexExport] = useState(false);
+      const [latexCode, setLatexCode] = useState('');
+      const [history, setHistory] = useState([]);
+      const [historyIndex, setHistoryIndex] = useState(-1);
+      const [templates, setTemplates] = useState([]);
+      const [isDraggingImage, setIsDraggingImage] = useState(false);
+      const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+      const [mode, setMode] = useState('position'); // 'position' or 'annotate'
+      const [pendingImages, setPendingImages] = useState([]);
+      const [isResizing, setIsResizing] = useState(false);
+      const [resizeCorner, setResizeCorner] = useState(null);
+      const [isCropping, setIsCropping] = useState(false);
+      const [cropStart, setCropStart] = useState(null);
+      const [cropArea, setCropArea] = useState(null);
+      const [isDrawingCrop, setIsDrawingCrop] = useState(false);
+      const [selectedControlPoint, setSelectedControlPoint] = useState(null);
+      const [isDraggingControlPoint, setIsDraggingControlPoint] = useState(false);
+
+      const canvasRef = useRef(null);
+      const containerRef = useRef(null);
+
+      // Load templates from localStorage
+      useEffect(() => {
+        const saved = localStorage.getItem('cockpit-templates');
+        if (saved) {
+          setTemplates(JSON.parse(saved));
+        }
+      }, []);
+
+      // Save templates to localStorage
+      useEffect(() => {
+        localStorage.setItem('cockpit-templates', JSON.stringify(templates));
+      }, [templates]);
+
+      // Save state to history
+      const saveToHistory = useCallback(() => {
+        const state = {
+          roles: JSON.parse(JSON.stringify(roles)),
+          images: JSON.parse(JSON.stringify(images)),
+          flowName,
+          aircraftType
+        };
+        const newHistory = history.slice(0, historyIndex + 1);
+        newHistory.push(state);
+        setHistory(newHistory);
+        setHistoryIndex(newHistory.length - 1);
+      }, [roles, images, flowName, aircraftType, history, historyIndex]);
+
+      // Undo
+      const undo = useCallback(() => {
+        if (historyIndex > 0) {
+          const prevState = history[historyIndex - 1];
+          setRoles(JSON.parse(JSON.stringify(prevState.roles)));
+          setImages(JSON.parse(JSON.stringify(prevState.images)));
+          setFlowName(prevState.flowName);
+          setAircraftType(prevState.aircraftType);
+          setHistoryIndex(historyIndex - 1);
+        }
+      }, [history, historyIndex]);
+
+      // Redo
+      const redo = useCallback(() => {
+        if (historyIndex < history.length - 1) {
+          const nextState = history[historyIndex + 1];
+          setRoles(JSON.parse(JSON.stringify(nextState.roles)));
+          setImages(JSON.parse(JSON.stringify(nextState.images)));
+          setFlowName(nextState.flowName);
+          setAircraftType(nextState.aircraftType);
+          setHistoryIndex(historyIndex + 1);
+        }
+      }, [history, historyIndex]);
+
+      // Keyboard shortcuts
+      useEffect(() => {
+        const handleKeyDown = (e) => {
+          if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+          if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+            e.preventDefault();
+            undo();
+          } else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+            e.preventDefault();
+            redo();
+          } else if (e.key === 'Delete' && selectedStep) {
+            e.preventDefault();
+            deleteStep(selectedStep.role, selectedStep.index);
+          }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+      }, [undo, redo, selectedStep]);
+
+      // Draw canvas
+      useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        const container = containerRef.current;
+        
+        canvas.width = container.clientWidth;
+        canvas.height = container.clientHeight;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.save();
+        ctx.translate(pan.x, pan.y);
+        ctx.scale(zoom, zoom);
+
+        // Draw confirmed images
+        images.forEach((img) => {
+          if (img.element && img.element.complete) {
+            ctx.drawImage(img.element, img.x, img.y, img.width, img.height);
+          }
+        });
+
+        // Draw pending images with semi-transparency
+        pendingImages.forEach((img, index) => {
+          if (img.element && img.element.complete) {
+            ctx.globalAlpha = 0.9;
+            ctx.drawImage(img.element, img.x, img.y, img.width, img.height);
+            ctx.globalAlpha = 1.0;
+            
+            const isSelected = selectedImage === index;
+            
+            // Draw border around pending images
+            ctx.strokeStyle = isSelected ? '#ffeb3b' : '#ffeb3b88';
+            ctx.lineWidth = (isSelected ? 3 : 2) / zoom;
+            ctx.strokeRect(img.x, img.y, img.width, img.height);
+            
+            // Draw resize handles for selected image
+            if (isSelected && !isCropping) {
+              const handleSize = 10 / zoom;
+              ctx.fillStyle = '#ffeb3b';
+              const corners = [
+                { x: img.x, y: img.y },
+                { x: img.x + img.width, y: img.y },
+                { x: img.x, y: img.y + img.height },
+                { x: img.x + img.width, y: img.y + img.height }
+              ];
+              
+              corners.forEach(corner => {
+                ctx.fillRect(
+                  corner.x - handleSize / 2,
+                  corner.y - handleSize / 2,
+                  handleSize,
+                  handleSize
+                );
+              });
+            }
+          }
+        });
+
+        // Draw crop area
+        if (cropArea && cropArea.width > 0 && cropArea.height > 0) {
+          // Darken outside crop area
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+          const canvasWidth = canvas.width / zoom;
+          const canvasHeight = canvas.height / zoom;
+          
+          // Top
+          ctx.fillRect(-pan.x / zoom, -pan.y / zoom, canvasWidth, cropArea.y + pan.y / zoom);
+          // Bottom
+          ctx.fillRect(-pan.x / zoom, cropArea.y + cropArea.height, canvasWidth, canvasHeight);
+          // Left
+          ctx.fillRect(-pan.x / zoom, cropArea.y, cropArea.x + pan.x / zoom, cropArea.height);
+          // Right
+          ctx.fillRect(cropArea.x + cropArea.width, cropArea.y, canvasWidth, cropArea.height);
+          
+          // Draw crop box
+          ctx.strokeStyle = '#00ff00';
+          ctx.lineWidth = 2 / zoom;
+          ctx.setLineDash([5 / zoom, 5 / zoom]);
+          ctx.strokeRect(cropArea.x, cropArea.y, cropArea.width, cropArea.height);
+          ctx.setLineDash([]);
+        }
+
+        // Only draw steps in annotate mode
+        if (mode === 'annotate') {
+          Object.entries(roles).forEach(([roleName, role]) => {
+            ctx.strokeStyle = role.color;
+            ctx.fillStyle = role.color;
+            ctx.lineWidth = 3 / zoom;
+
+            // Draw lines between steps using control points
+            if (role.steps.length > 1) {
+              ctx.beginPath();
+              const first = role.steps[0];
+              ctx.moveTo(first.x, first.y);
+
+              for (let i = 1; i < role.steps.length; i++) {
+                const prev = role.steps[i - 1];
+                const curr = role.steps[i];
+                const controlPoint = role.curves[i - 1] || getDefaultControlPoint(prev, curr);
+                
+                // Draw quadratic curve through control point
+                ctx.quadraticCurveTo(controlPoint.x, controlPoint.y, curr.x, curr.y);
+              }
+              ctx.stroke();
+            }
+
+            // Draw control points (draggable curve handles)
+            role.curves.forEach((curve, index) => {
+              const isSelected = selectedControlPoint?.role === roleName && selectedControlPoint?.index === index;
+              
+              // Draw control point
+              ctx.fillStyle = role.color;
+              ctx.globalAlpha = 0.6;
+              ctx.beginPath();
+              ctx.arc(curve.x, curve.y, (isSelected ? 8 : 6) / zoom, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.globalAlpha = 1.0;
+              
+              if (isSelected) {
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2 / zoom;
+                ctx.stroke();
+                ctx.strokeStyle = role.color;
+                ctx.lineWidth = 3 / zoom;
+              }
+
+              // Draw lines from control point to its connected steps
+              ctx.strokeStyle = role.color;
+              ctx.globalAlpha = 0.3;
+              ctx.lineWidth = 1 / zoom;
+              ctx.setLineDash([3 / zoom, 3 / zoom]);
+              
+              if (index < role.steps.length - 1) {
+                ctx.beginPath();
+                ctx.moveTo(role.steps[index].x, role.steps[index].y);
+                ctx.lineTo(curve.x, curve.y);
+                ctx.lineTo(role.steps[index + 1].x, role.steps[index + 1].y);
+                ctx.stroke();
+              }
+              
+              ctx.setLineDash([]);
+              ctx.globalAlpha = 1.0;
+            });
+
+            // Draw step points and numbers
+            role.steps.forEach((step, index) => {
+              const isSelected = selectedStep?.role === roleName && selectedStep?.index === index;
+              
+              ctx.fillStyle = role.color;
+              // Draw point
+              ctx.beginPath();
+              ctx.arc(step.x, step.y, (isSelected ? 12 : 8) / zoom, 0, Math.PI * 2);
+              ctx.fill();
+              
+              if (isSelected) {
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2 / zoom;
+                ctx.stroke();
+                ctx.strokeStyle = role.color;
+                ctx.lineWidth = 3 / zoom;
+              }
+
+              // Draw number
+              ctx.fillStyle = '#fff';
+              ctx.font = `bold ${16 / zoom}px sans-serif`;
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(index + 1, step.x, step.y);
+              ctx.fillStyle = role.color;
+            });
+          });
+        }
+
+        ctx.restore();
+
+        // Draw mode indicator
+        ctx.fillStyle = mode === 'position' ? '#ffeb3b' : '#4caf50';
+        ctx.font = 'bold 16px sans-serif';
+        ctx.fillText(mode === 'position' ? 'POSITION MODE' : 'ANNOTATE MODE', 20, 30);
+        
+        if (isCropping) {
+          ctx.fillStyle = '#00ff00';
+          ctx.fillText('CROP MODE - Draw rectangle', 20, 55);
+        }
+        
+      }, [images, pendingImages, roles, zoom, pan, selectedStep, mode, selectedImage, cropArea, isCropping, selectedControlPoint]);
+
+      // Handle image upload
+      const handleImageUpload = (e) => {
+        const files = Array.from(e.target.files);
+        
+        files.forEach((file) => {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+              const newImage = {
+                id: Date.now() + Math.random(),
+                element: img,
+                x: 100 + pendingImages.length * 50,
+                y: 100 + pendingImages.length * 50,
+                width: img.width,
+                height: img.height,
+                name: file.name,
+                scale: 1
+              };
+              setPendingImages(prev => [...prev, newImage]);
+              setMode('position');
+            };
+            img.src = event.target.result;
+          };
+          reader.readAsDataURL(file);
+        });
+        e.target.value = ''; // Reset input
+      };
+
+      // Confirm image positioning
+      const confirmImagePosition = () => {
+        if (pendingImages.length > 0) {
+          setImages(prev => [...prev, ...pendingImages]);
+          setPendingImages([]);
+          setSelectedImage(null);
+          setCropArea(null);
+          saveToHistory();
+        }
+      };
+
+      // Apply crop to selected image
+      const applyCrop = () => {
+        if (!cropArea || selectedImage === null) return;
+        
+        setPendingImages(prev => {
+          const updated = [...prev];
+          const img = updated[selectedImage];
+          
+          // Create a temporary canvas to crop the image
+          const canvas = document.createElement('canvas');
+          canvas.width = cropArea.width;
+          canvas.height = cropArea.height;
+          const ctx = canvas.getContext('2d');
+          
+          // Draw the cropped portion
+          ctx.drawImage(
+            img.element,
+            cropArea.x - img.x, cropArea.y - img.y,
+            cropArea.width, cropArea.height,
+            0, 0,
+            cropArea.width, cropArea.height
+          );
+          
+          // Create new image from cropped canvas
+          const croppedImg = new Image();
+          croppedImg.src = canvas.toDataURL();
+          
+          updated[selectedImage] = {
+            ...img,
+            element: croppedImg,
+            x: cropArea.x,
+            y: cropArea.y,
+            width: cropArea.width,
+            height: cropArea.height
+          };
+          
+          return updated;
+        });
+        
+        setCropArea(null);
+      };
+
+      // Cancel crop
+      const cancelCrop = () => {
+        setCropArea(null);
+        setIsCropping(false);
+        setIsDrawingCrop(false);
+        setCropStart(null);
+      };
+
+      // Calculate default control point position
+      const getDefaultControlPoint = (step1, step2) => {
+        return {
+          x: (step1.x + step2.x) / 2,
+          y: (step1.y + step2.y) / 2
+        };
+      };
+
+      // Add a step and update curves
+      const addStep = (x, y) => {
+        const newStep = {
+          x,
+          y,
+          text: `Step ${roles[activeRole].steps.length + 1}`
+        };
+
+        setRoles(prev => {
+          const updatedRole = { ...prev[activeRole] };
+          const newSteps = [...updatedRole.steps, newStep];
+          const newCurves = [...updatedRole.curves];
+
+          // If there's a previous step, create a curve to it
+          if (newSteps.length > 1) {
+            const prevStep = newSteps[newSteps.length - 2];
+            newCurves.push(getDefaultControlPoint(prevStep, newStep));
+          }
+
+          return {
+            ...prev,
+            [activeRole]: {
+              ...updatedRole,
+              steps: newSteps,
+              curves: newCurves
+            }
+          };
+        });
+
+        saveToHistory();
+      };
+
+      // Start annotation mode
+      const startAnnotationMode = () => {
+        if (images.length === 0 && pendingImages.length === 0) {
+          alert('Please add at least one image first');
+          return;
+        }
+        if (pendingImages.length > 0) {
+          confirmImagePosition();
+        }
+        setMode('annotate');
+      };
+
+      // Handle canvas click
+      const handleCanvasClick = (e) => {
+        if (isDraggingImage || isPanning || isDrawingCrop || isDraggingControlPoint) return;
+
+        const canvas = canvasRef.current;
+        const rect = canvas.getBoundingClientRect();
+        const x = (e.clientX - rect.left - pan.x) / zoom;
+        const y = (e.clientY - rect.top - pan.y) / zoom;
+
+        // In position mode, select images for dragging
+        if (mode === 'position') {
+          const allImages = [...images, ...pendingImages];
+          for (let i = allImages.length - 1; i >= 0; i--) {
+            const img = allImages[i];
+            if (x >= img.x && x <= img.x + img.width && y >= img.y && y <= img.y + img.height) {
+              setSelectedImage(i);
+              return;
+            }
+          }
+          setSelectedImage(null);
+          return;
+        }
+
+        // In annotate mode, handle steps and control points
+        let clicked = false;
+        
+        // Check if clicking on control point
+        Object.entries(roles).forEach(([roleName, role]) => {
+          role.curves.forEach((curve, index) => {
+            const distance = Math.sqrt((curve.x - x) ** 2 + (curve.y - y) ** 2);
+            if (distance < 15 / zoom) {
+              setSelectedControlPoint({ role: roleName, index });
+              clicked = true;
+            }
+          });
+        });
+
+        if (clicked) return;
+
+        // Check if clicking on existing step
+        Object.entries(roles).forEach(([roleName, role]) => {
+          role.steps.forEach((step, index) => {
+            const distance = Math.sqrt((step.x - x) ** 2 + (step.y - y) ** 2);
+            if (distance < 15 / zoom) {
+              setSelectedStep({ role: roleName, index });
+              setSelectedControlPoint(null);
+              clicked = true;
+            }
+          });
+        });
+
+        // Add new step if not clicking on existing step or control point
+        if (!clicked) {
+          setSelectedStep(null);
+          setSelectedControlPoint(null);
+          addStep(x, y);
+        }
+      };
+
+      // Handle mouse down for panning or dragging
+      const handleMouseDown = (e) => {
+        if (e.button === 2 || (e.button === 0 && e.shiftKey)) {
+          e.preventDefault();
+          setIsPanning(true);
+          setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+          return;
+        }
+        
+        if (e.button === 0 && mode === 'position') {
+          const canvas = canvasRef.current;
+          const rect = canvas.getBoundingClientRect();
+          const x = (e.clientX - rect.left - pan.x) / zoom;
+          const y = (e.clientY - rect.top - pan.y) / zoom;
+          
+          const allImages = [...images, ...pendingImages];
+          
+          // Check if starting a crop
+          if (isCropping) {
+            setIsDrawingCrop(true);
+            setCropStart({ x, y });
+            setCropArea({ x, y, width: 0, height: 0 });
+            return;
+          }
+          
+          // Check for resize handles on selected image
+          if (selectedImage !== null && selectedImage < allImages.length) {
+            const img = allImages[selectedImage];
+            const corner = isNearResizeHandle(x, y, img, zoom);
+            
+            if (corner) {
+              setIsResizing(true);
+              setResizeCorner(corner);
+              setDragStart({ x, y });
+              return;
+            }
+          }
+          
+          // Check if clicking on an image
+          for (let i = allImages.length - 1; i >= 0; i--) {
+            const img = allImages[i];
+            if (x >= img.x && x <= img.x + img.width && y >= img.y && y <= img.y + img.height) {
+              setSelectedImage(i);
+              setIsDraggingImage(true);
+              setDragStart({ x: x - img.x, y: y - img.y });
+              return;
+            }
+          }
+          
+          setSelectedImage(null);
+        } else if (e.button === 0 && mode === 'annotate') {
+          // Handle control point dragging
+          const canvas = canvasRef.current;
+          const rect = canvas.getBoundingClientRect();
+          const x = (e.clientX - rect.left - pan.x) / zoom;
+          const y = (e.clientY - rect.top - pan.y) / zoom;
+
+          // Check if clicking on a control point
+          Object.entries(roles).forEach(([roleName, role]) => {
+            role.curves.forEach((curve, index) => {
+              const distance = Math.sqrt((curve.x - x) ** 2 + (curve.y - y) ** 2);
+              if (distance < 15 / zoom) {
+                setSelectedControlPoint({ role: roleName, index });
+                setIsDraggingControlPoint(true);
+              }
+            });
+          });
+        }
+      };
+
+      // Handle mouse move
+      const handleMouseMove = (e) => {
+        const canvas = canvasRef.current;
+        const rect = canvas.getBoundingClientRect();
+        const x = (e.clientX - rect.left - pan.x) / zoom;
+        const y = (e.clientY - rect.top - pan.y) / zoom;
+        
+        if (isPanning) {
+          setPan({ x: e.clientX - panStart.x, y: e.clientY - panStart.y });
+        } else if (isDrawingCrop && cropStart) {
+          // Update crop area
+          const width = x - cropStart.x;
+          const height = y - cropStart.y;
+          setCropArea({
+            x: width < 0 ? x : cropStart.x,
+            y: height < 0 ? y : cropStart.y,
+            width: Math.abs(width),
+            height: Math.abs(height)
+          });
+        } else if (isDraggingControlPoint && selectedControlPoint) {
+          // Update control point position
+          setRoles(prev => {
+            const updated = { ...prev };
+            const role = updated[selectedControlPoint.role];
+            const newCurves = [...role.curves];
+            newCurves[selectedControlPoint.index] = { x, y };
+            
+            return {
+              ...prev,
+              [selectedControlPoint.role]: {
+                ...role,
+                curves: newCurves
+              }
+            };
+          });
+        } else if (isResizing && selectedImage !== null && resizeCorner) {
+          // Handle resizing
+          setPendingImages(prev => {
+            const updated = [...prev];
+            const img = updated[selectedImage];
+            if (!img) return prev;
+            
+            const newImg = { ...img };
+            const dx = x - dragStart.x;
+            const dy = y - dragStart.y;
+            
+            switch (resizeCorner) {
+              case 'se':
+                newImg.width = Math.max(50, img.width + dx);
+                newImg.height = Math.max(50, img.height + dy);
+                break;
+              case 'sw':
+                newImg.width = Math.max(50, img.width - dx);
+                newImg.height = Math.max(50, img.height + dy);
+                newImg.x = img.x + img.width - newImg.width;
+                break;
+              case 'ne':
+                newImg.width = Math.max(50, img.width + dx);
+                newImg.height = Math.max(50, img.height - dy);
+                newImg.y = img.y + img.height - newImg.height;
+                break;
+              case 'nw':
+                newImg.width = Math.max(50, img.width - dx);
+                newImg.height = Math.max(50, img.height - dy);
+                newImg.x = img.x + img.width - newImg.width;
+                newImg.y = img.y + img.height - newImg.height;
+                break;
+            }
+            
+            updated[selectedImage] = newImg;
+            setDragStart({ x, y });
+            return updated;
+          });
+        } else if (isDraggingImage && selectedImage !== null) {
+          if (mode === 'position') {
+            setPendingImages(prev => {
+              const updated = [...prev];
+              if (selectedImage < prev.length) {
+                updated[selectedImage] = {
+                  ...updated[selectedImage],
+                  x: x - dragStart.x,
+                  y: y - dragStart.y
+                };
+              }
+              return updated;
+            });
+          } else {
+            setImages(prev => {
+              const updated = [...prev];
+              if (selectedImage < updated.length) {
+                updated[selectedImage] = {
+                  ...updated[selectedImage],
+                  x: x - dragStart.x,
+                  y: y - dragStart.y
+                };
+              }
+              return updated;
+            });
+          }
+        } else if (mode === 'position' && selectedImage !== null && !isCropping) {
+          // Update cursor based on proximity to resize handles
+          const allImages = [...images, ...pendingImages];
+          if (selectedImage < allImages.length) {
+            const img = allImages[selectedImage];
+            const corner = isNearResizeHandle(x, y, img, zoom);
+            
+            if (corner) {
+              const cursors = { se: 'nwse-resize', sw: 'nesw-resize', ne: 'nesw-resize', nw: 'nwse-resize' };
+              canvas.style.cursor = cursors[corner];
+            } else if (x >= img.x && x <= img.x + img.width && y >= img.y && y <= img.y + img.height) {
+              canvas.style.cursor = 'move';
+            } else {
+              canvas.style.cursor = 'grab';
+            }
+          }
+        } else if (mode === 'annotate') {
+          // Update cursor for control points
+          let overControlPoint = false;
+          Object.entries(roles).forEach(([roleName, role]) => {
+            role.curves.forEach((curve) => {
+              const distance = Math.sqrt((curve.x - x) ** 2 + (curve.y - y) ** 2);
+              if (distance < 15 / zoom) {
+                overControlPoint = true;
+              }
+            });
+          });
+          canvas.style.cursor = overControlPoint ? 'move' : 'crosshair';
+        }
+      };
+
+      // Handle mouse up
+      const handleMouseUp = () => {
+        if (isDraggingImage) {
+          saveToHistory();
+        }
+        if (isResizing) {
+          saveToHistory();
+        }
+        if (isDraggingControlPoint) {
+          saveToHistory();
+        }
+        setIsPanning(false);
+        setIsDraggingImage(false);
+        setIsResizing(false);
+        setResizeCorner(null);
+        setIsDrawingCrop(false);
+        setIsDraggingControlPoint(false);
+      };
+
+      // Handle wheel zoom
+      const handleWheel = (e) => {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? 0.9 : 1.1;
+        setZoom(prev => Math.max(0.1, Math.min(5, prev * delta)));
+      };
+
+      // Delete step
+      const deleteStep = (roleName, index) => {
+        setRoles(prev => {
+          const updatedRole = { ...prev[roleName] };
+          const newSteps = updatedRole.steps.filter((_, i) => i !== index);
+          const newCurves = [];
+
+          // Recalculate curves
+          for (let i = 0; i < newSteps.length - 1; i++) {
+            if (i < updatedRole.curves.length && index > i + 1) {
+              // Keep existing curve if deletion was after it
+              newCurves.push(updatedRole.curves[i]);
+            } else if (i === index - 1 && i + 1 < updatedRole.curves.length) {
+              // Keep next curve if we deleted middle step
+              newCurves.push(updatedRole.curves[i + 1]);
+            } else if (i < updatedRole.curves.length && index <= i) {
+              // Keep curve but shift index
+              newCurves.push(updatedRole.curves[i + 1]);
+            } else {
+              // Create new default curve
+              newCurves.push(getDefaultControlPoint(newSteps[i], newSteps[i + 1]));
+            }
+          }
+
+          return {
+            ...prev,
+            [roleName]: {
+              ...updatedRole,
+              steps: newSteps,
+              curves: newCurves.slice(0, newSteps.length - 1)
+            }
+          };
+        });
+        setSelectedStep(null);
+        saveToHistory();
+      };
+
+      // Update step text
+      const updateStepText = (roleName, index, text) => {
+        setRoles(prev => ({
+          ...prev,
+          [roleName]: {
+            ...prev[roleName],
+            steps: prev[roleName].steps.map((step, i) => 
+              i === index ? { ...step, text } : step
+            )
+          }
+        }));
+      };
+
+      // Export image
+      const exportImage = () => {
+        const exportCanvas = document.createElement('canvas');
+        const scale = 3; // High resolution
+        
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        
+        images.forEach(img => {
+          minX = Math.min(minX, img.x);
+          minY = Math.min(minY, img.y);
+          maxX = Math.max(maxX, img.x + img.width);
+          maxY = Math.max(maxY, img.y + img.height);
+        });
+
+        Object.values(roles).forEach(role => {
+          role.steps.forEach(step => {
+            minX = Math.min(minX, step.x - 50);
+            minY = Math.min(minY, step.y - 50);
+            maxX = Math.max(maxX, step.x + 50);
+            maxY = Math.max(maxY, step.y + 50);
+          });
+          role.curves.forEach(curve => {
+            minX = Math.min(minX, curve.x - 50);
+            minY = Math.min(minY, curve.y - 50);
+            maxX = Math.max(maxX, curve.x + 50);
+            maxY = Math.max(maxY, curve.y + 50);
+          });
+        });
+
+        const width = (maxX - minX) || 800;
+        const height = (maxY - minY) || 600;
+        
+        exportCanvas.width = width * scale;
+        exportCanvas.height = height * scale;
+        
+        const ctx = exportCanvas.getContext('2d');
+        ctx.scale(scale, scale);
+        ctx.translate(-minX, -minY);
+        
+        // Draw images
+        images.forEach(img => {
+          if (img.element && img.element.complete) {
+            ctx.drawImage(img.element, img.x, img.y, img.width, img.height);
+          }
+        });
+
+        // Draw steps
+        Object.values(roles).forEach(role => {
+          ctx.strokeStyle = role.color;
+          ctx.fillStyle = role.color;
+          ctx.lineWidth = 3;
+
+          if (role.steps.length > 1) {
+            ctx.beginPath();
+            const first = role.steps[0];
+            ctx.moveTo(first.x, first.y);
+
+            for (let i = 1; i < role.steps.length; i++) {
+              const prev = role.steps[i - 1];
+              const curr = role.steps[i];
+              const controlPoint = role.curves[i - 1] || getDefaultControlPoint(prev, curr);
+              ctx.quadraticCurveTo(controlPoint.x, controlPoint.y, curr.x, curr.y);
+            }
+            ctx.stroke();
+          }
+
+          role.steps.forEach((step, index) => {
+            ctx.beginPath();
+            ctx.arc(step.x, step.y, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 16px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(index + 1, step.x, step.y);
+            ctx.fillStyle = role.color;
+          });
+        });
+
+        exportCanvas.toBlob(blob => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${flowName.replace(/\s+/g, '_')}.png`;
+          a.click();
+          URL.revokeObjectURL(url);
+        });
+      };
+
+      // Export text
+      const exportText = () => {
+        let text = `${flowName} - ${aircraftType}\n`;
+        text += '='.repeat(50) + '\n\n';
+
+        Object.entries(roles).forEach(([roleName, role]) => {
+          if (role.steps.length > 0) {
+            text += `${roleName} (Pilot ${roleName === 'PF' ? 'Flying' : 'Monitoring'}):\n`;
+            role.steps.forEach((step, index) => {
+              text += `  ${index + 1}. ${step.text}\n`;
+            });
+            text += '\n';
+          }
+        });
+
+        downloadFile(text, `${flowName.replace(/\s+/g, '_')}.txt`);
+      };
+
+      // Export LaTeX
+      const exportLatex = () => {
+        let latex = `% Flow: ${escapeLatex(flowName)} (${escapeLatex(aircraftType)})\n`;
+        latex += `\\subsection{${escapeLatex(flowName)} for ${escapeLatex(aircraftType)}}\n\n`;
+
+        Object.entries(roles).forEach(([roleName, role]) => {
+          if (role.steps.length > 0) {
+            latex += `\\subsubsection{Pilot ${roleName === 'PF' ? 'Flying' : 'Monitoring'}}\n`;
+            latex += `\\begin{enumerate}\n`;
+            role.steps.forEach(step => {
+              latex += `  \\item ${escapeLatex(step.text)}\n`;
+            });
+            latex += `\\end{enumerate}\n\n`;
+          }
+        });
+
+        setLatexCode(latex);
+        setShowLatexExport(true);
+      };
+
+      // Export PDF
+      const exportPDF = async () => {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: 'a4'
+        });
+
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const margin = 20;
+        const contentWidth = pageWidth - (2 * margin);
+
+        // Title
+        doc.setFontSize(24);
+        doc.setTextColor(40, 40, 40);
+        doc.text(flowName, margin, margin + 10);
+
+        // Aircraft type
+        doc.setFontSize(14);
+        doc.setTextColor(100, 100, 100);
+        doc.text(aircraftType || 'Aircraft Type', margin, margin + 20);
+
+        // Separator line
+        doc.setDrawColor(200, 200, 200);
+        doc.setLineWidth(0.5);
+        doc.line(margin, margin + 25, pageWidth - margin, margin + 25);
+
+        let yPosition = margin + 35;
+
+        // Generate the flow image
+        const exportCanvas = document.createElement('canvas');
+        const scale = 2;
+        
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        
+        images.forEach(img => {
+          minX = Math.min(minX, img.x);
+          minY = Math.min(minY, img.y);
+          maxX = Math.max(maxX, img.x + img.width);
+          maxY = Math.max(maxY, img.y + img.height);
+        });
+
+        Object.values(roles).forEach(role => {
+          role.steps.forEach(step => {
+            minX = Math.min(minX, step.x - 50);
+            minY = Math.min(minY, step.y - 50);
+            maxX = Math.max(maxX, step.x + 50);
+            maxY = Math.max(maxY, step.y + 50);
+          });
+          role.curves.forEach(curve => {
+            minX = Math.min(minX, curve.x - 50);
+            minY = Math.min(minY, curve.y - 50);
+            maxX = Math.max(maxX, curve.x + 50);
+            maxY = Math.max(maxY, curve.y + 50);
+          });
+        });
+
+        const imgWidth = (maxX - minX) || 800;
+        const imgHeight = (maxY - minY) || 600;
+        
+        exportCanvas.width = imgWidth * scale;
+        exportCanvas.height = imgHeight * scale;
+        
+        const ctx = exportCanvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+        ctx.scale(scale, scale);
+        ctx.translate(-minX, -minY);
+        
+        // Draw images
+        images.forEach(img => {
+          if (img.element && img.element.complete) {
+            ctx.drawImage(img.element, img.x, img.y, img.width, img.height);
+          }
+        });
+
+        // Draw steps
+        Object.values(roles).forEach(role => {
+          ctx.strokeStyle = role.color;
+          ctx.fillStyle = role.color;
+          ctx.lineWidth = 3;
+
+          if (role.steps.length > 1) {
+            ctx.beginPath();
+            const first = role.steps[0];
+            ctx.moveTo(first.x, first.y);
+
+            for (let i = 1; i < role.steps.length; i++) {
+              const prev = role.steps[i - 1];
+              const curr = role.steps[i];
+              const controlPoint = role.curves[i - 1] || getDefaultControlPoint(prev, curr);
+              ctx.quadraticCurveTo(controlPoint.x, controlPoint.y, curr.x, curr.y);
+            }
+            ctx.stroke();
+          }
+
+          role.steps.forEach((step, index) => {
+            ctx.beginPath();
+            ctx.arc(step.x, step.y, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 16px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(index + 1, step.x, step.y);
+            ctx.fillStyle = role.color;
+          });
+        });
+
+        // Add image to PDF
+        const imageData = exportCanvas.toDataURL('image/png');
+        const aspectRatio = imgWidth / imgHeight;
+        let pdfImgWidth = contentWidth;
+        let pdfImgHeight = pdfImgWidth / aspectRatio;
+
+        // Check if image fits on current page
+        const availableHeight = pageHeight - yPosition - 20;
+        if (pdfImgHeight > availableHeight) {
+          pdfImgHeight = availableHeight;
+          pdfImgWidth = pdfImgHeight * aspectRatio;
+        }
+
+        // Center the image
+        const imgX = (pageWidth - pdfImgWidth) / 2;
+        doc.addImage(imageData, 'PNG', imgX, yPosition, pdfImgWidth, pdfImgHeight);
+
+        // Add new page for steps
+        doc.addPage();
+        yPosition = margin;
+
+        // Two-column layout
+        const columnWidth = (contentWidth - 10) / 2; // 10mm gap between columns
+        const leftColumnX = margin;
+        const rightColumnX = margin + columnWidth + 10;
+
+        // Get PF and PM roles
+        const pfRole = roles.PF;
+        const pmRole = roles.PM;
+
+        // Draw PF column (left)
+        if (pfRole && pfRole.steps.length > 0) {
+          // PF Header
+          doc.setFontSize(16);
+          const pfRgb = hexToRgb(pfRole.color);
+          doc.setTextColor(pfRgb.r, pfRgb.g, pfRgb.b);
+          doc.setFont(undefined, 'bold');
+          doc.text('PF - Pilot Flying', leftColumnX, yPosition);
+          
+          // Header underline
+          doc.setDrawColor(pfRgb.r, pfRgb.g, pfRgb.b);
+          doc.setLineWidth(0.5);
+          doc.line(leftColumnX, yPosition + 2, leftColumnX + columnWidth, yPosition + 2);
+          
+          let pfY = yPosition + 10;
+          
+          // PF Steps
+          doc.setFontSize(10);
+          doc.setTextColor(60, 60, 60);
+          doc.setFont(undefined, 'normal');
+          
+          pfRole.steps.forEach((step, index) => {
+            // Check if we need a new page
+            if (pfY > pageHeight - 30) {
+              doc.addPage();
+              pfY = margin;
+            }
+
+            // Step number with color
+            doc.setTextColor(pfRgb.r, pfRgb.g, pfRgb.b);
+            doc.setFont(undefined, 'bold');
+            doc.text(`${index + 1}.`, leftColumnX, pfY);
+            
+            // Step text
+            doc.setTextColor(60, 60, 60);
+            doc.setFont(undefined, 'normal');
+            const stepText = step.text;
+            const lines = doc.splitTextToSize(stepText, columnWidth - 8);
+            
+            lines.forEach((line, lineIndex) => {
+              doc.text(line, leftColumnX + 8, pfY + (lineIndex * 5));
+            });
+            
+            pfY += (lines.length * 5) + 3;
+          });
+        }
+
+        // Draw PM column (right)
+        if (pmRole && pmRole.steps.length > 0) {
+          // Reset to top of page for PM column
+          let pmY = yPosition;
+          
+          // PM Header
+          doc.setFontSize(16);
+          const pmRgb = hexToRgb(pmRole.color);
+          doc.setTextColor(pmRgb.r, pmRgb.g, pmRgb.b);
+          doc.setFont(undefined, 'bold');
+          doc.text('PM - Pilot Monitoring', rightColumnX, pmY);
+          
+          // Header underline
+          doc.setDrawColor(pmRgb.r, pmRgb.g, pmRgb.b);
+          doc.setLineWidth(0.5);
+          doc.line(rightColumnX, pmY + 2, rightColumnX + columnWidth, pmY + 2);
+          
+          pmY += 10;
+          
+          // PM Steps
+          doc.setFontSize(10);
+          doc.setTextColor(60, 60, 60);
+          doc.setFont(undefined, 'normal');
+          
+          pmRole.steps.forEach((step, index) => {
+            // Check if we need a new page
+            if (pmY > pageHeight - 30) {
+              doc.addPage();
+              pmY = margin;
+              
+              // Re-draw PM header on new page
+              doc.setFontSize(16);
+              doc.setTextColor(pmRgb.r, pmRgb.g, pmRgb.b);
+              doc.setFont(undefined, 'bold');
+              doc.text('PM - Pilot Monitoring (cont.)', rightColumnX, pmY);
+              doc.setDrawColor(pmRgb.r, pmRgb.g, pmRgb.b);
+              doc.setLineWidth(0.5);
+              doc.line(rightColumnX, pmY + 2, rightColumnX + columnWidth, pmY + 2);
+              pmY += 10;
+              doc.setFontSize(10);
+              doc.setTextColor(60, 60, 60);
+              doc.setFont(undefined, 'normal');
+            }
+
+            // Step number with color
+            doc.setTextColor(pmRgb.r, pmRgb.g, pmRgb.b);
+            doc.setFont(undefined, 'bold');
+            doc.text(`${index + 1}.`, rightColumnX, pmY);
+            
+            // Step text
+            doc.setTextColor(60, 60, 60);
+            doc.setFont(undefined, 'normal');
+            const stepText = step.text;
+            const lines = doc.splitTextToSize(stepText, columnWidth - 8);
+            
+            lines.forEach((line, lineIndex) => {
+              doc.text(line, rightColumnX + 8, pmY + (lineIndex * 5));
+            });
+            
+            pmY += (lines.length * 5) + 3;
+          });
+        }
+
+        // Add vertical separator line between columns on all text pages
+        const totalPages = doc.internal.getNumberOfPages();
+        for (let i = 2; i <= totalPages; i++) {
+          doc.setPage(i);
+          doc.setDrawColor(220, 220, 220);
+          doc.setLineWidth(0.3);
+          doc.line(pageWidth / 2, margin, pageWidth / 2, pageHeight - 20);
+        }
+
+        // Footer on all pages
+        for (let i = 1; i <= totalPages; i++) {
+          doc.setPage(i);
+          doc.setFontSize(9);
+          doc.setTextColor(150, 150, 150);
+          doc.text(
+            `Page ${i} of ${totalPages}`,
+            pageWidth / 2,
+            pageHeight - 10,
+            { align: 'center' }
+          );
+          doc.text(
+            `Generated on ${new Date().toLocaleDateString()}`,
+            pageWidth - margin,
+            pageHeight - 10,
+            { align: 'right' }
+          );
+        }
+
+        // Save PDF
+        doc.save(`${flowName.replace(/\s+/g, '_')}.pdf`);
+      };
+
+      // Helper function to convert hex color to RGB
+      const hexToRgb = (hex) => {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16)
+        } : { r: 0, g: 0, b: 0 };
+      };
+
+      // Save template
+      const saveTemplate = () => {
+        const template = {
+          id: Date.now(),
+          name: `${aircraftType || 'Template'} - ${flowName}`,
+          aircraftType,
+          roles: JSON.parse(JSON.stringify(roles)),
+          images: images.map(img => ({
+            x: img.x,
+            y: img.y,
+            width: img.width,
+            height: img.height,
+            name: img.name
+          }))
+        };
+        setTemplates(prev => [...prev, template]);
+      };
+
+      // Load template
+      const loadTemplate = (template) => {
+        setAircraftType(template.aircraftType);
+        setRoles(JSON.parse(JSON.stringify(template.roles)));
+        saveToHistory();
+      };
+
+      // Delete template
+      const deleteTemplate = (id) => {
+        setTemplates(prev => prev.filter(t => t.id !== id));
+      };
+
+      return (
+        <div className="app-container">
+          <div className="sidebar">
+            <div className="section">
+              <div className="section-title">Flow Settings</div>
+              <div className="input-group">
+                <label>Flow Name</label>
+                <input 
+                  type="text" 
+                  value={flowName} 
+                  onChange={(e) => setFlowName(e.target.value)}
+                />
+              </div>
+              <div className="input-group">
+                <label>Aircraft Type</label>
+                <input 
+                  type="text" 
+                  value={aircraftType} 
+                  onChange={(e) => setAircraftType(e.target.value)}
+                  placeholder="e.g., A320, B737"
+                />
+              </div>
+            </div>
+
+            <div className="section">
+              <div className="section-title">Mode</div>
+              <div style={{ 
+                padding: '12px', 
+                background: mode === 'position' ? '#ffeb3b22' : '#4caf5022',
+                borderRadius: '6px',
+                marginBottom: '12px',
+                border: `2px solid ${mode === 'position' ? '#ffeb3b' : '#4caf50'}`
+              }}>
+                <div style={{ fontWeight: 'bold', marginBottom: '4px', color: mode === 'position' ? '#ffeb3b' : '#4caf50' }}>
+                  {mode === 'position' ? '📍 POSITION MODE' : '✏️ ANNOTATE MODE'}
+                </div>
+                <div style={{ fontSize: '12px', color: '#aaa' }}>
+                  {mode === 'position' 
+                    ? 'Drag images to position them. Click "Confirm Positions" when ready.'
+                    : 'Click on images to add steps for the selected role.'}
+                </div>
+              </div>
+              {mode === 'position' && pendingImages.length > 0 && (
+                <button className="btn btn-primary" onClick={confirmImagePosition}>
+                  Confirm Image Positions
+                </button>
+              )}
+              {mode === 'position' && (
+                <button className="btn btn-primary" onClick={startAnnotationMode}>
+                  Start Adding Steps →
+                </button>
+              )}
+              {mode === 'annotate' && (
+                <button className="btn" onClick={() => setMode('position')}>
+                  ← Back to Position Mode
+                </button>
+              )}
+            </div>
+
+            <div className="section">
+              <div className="section-title">Images</div>
+              <label className="file-input-label">
+                Add Images
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  multiple 
+                  onChange={handleImageUpload}
+                />
+              </label>
+              
+              {mode === 'position' && selectedImage !== null && pendingImages[selectedImage] && (
+                <div style={{ 
+                  marginTop: '12px', 
+                  padding: '12px', 
+                  background: '#ffeb3b22',
+                  borderRadius: '6px',
+                  border: '2px solid #ffeb3b'
+                }}>
+                  <div style={{ fontWeight: 'bold', marginBottom: '8px', color: '#ffeb3b' }}>
+                    Selected: {pendingImages[selectedImage].name}
+                  </div>
+                  
+                  {!isCropping ? (
+                    <>
+                      <button 
+                        className="btn" 
+                        style={{ marginBottom: '6px' }}
+                        onClick={() => {
+                          setIsCropping(true);
+                          setCropArea(null);
+                        }}
+                      >
+                        ✂️ Crop Image
+                      </button>
+                      <div style={{ fontSize: '11px', color: '#aaa', marginTop: '4px' }}>
+                        • Drag corners to resize
+                        <br />• Drag image to move
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ fontSize: '12px', color: '#aaa', marginBottom: '8px' }}>
+                        Draw a rectangle on the image to crop
+                      </div>
+                      {cropArea && cropArea.width > 5 && cropArea.height > 5 && (
+                        <button 
+                          className="btn btn-primary" 
+                          style={{ marginBottom: '6px' }}
+                          onClick={applyCrop}
+                        >
+                          ✓ Apply Crop
+                        </button>
+                      )}
+                      <button 
+                        className="btn" 
+                        onClick={cancelCrop}
+                      >
+                        ✗ Cancel Crop
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+              
+              <div className="image-list">
+                {images.map((img, index) => (
+                  <div key={img.id} className="image-item">
+                    <span>✓ {img.name}</span>
+                    <button 
+                      className="image-delete"
+                      onClick={() => {
+                        setImages(prev => prev.filter((_, i) => i !== index));
+                        saveToHistory();
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ))}
+                {pendingImages.map((img, index) => (
+                  <div 
+                    key={img.id} 
+                    className="image-item" 
+                    style={{ 
+                      borderLeft: selectedImage === index ? '3px solid #ffeb3b' : '3px solid #ffeb3b88',
+                      background: selectedImage === index ? '#ffeb3b11' : '#1a1a1a',
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => setSelectedImage(index)}
+                  >
+                    <span>⏳ {img.name}</span>
+                    <button 
+                      className="image-delete"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPendingImages(prev => prev.filter((_, i) => i !== index));
+                        if (selectedImage === index) setSelectedImage(null);
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {mode === 'annotate' && (
+              <>
+                <div className="section">
+                  <div className="section-title">Active Role</div>
+                  <div className="role-selector">
+                    <button 
+                      className={`role-btn ${activeRole === 'PF' ? 'active' : ''}`}
+                      style={{ color: roles.PF.color, borderColor: activeRole === 'PF' ? roles.PF.color : 'transparent' }}
+                      onClick={() => setActiveRole('PF')}
+                    >
+                      PF
+                    </button>
+                    <button 
+                      className={`role-btn ${activeRole === 'PM' ? 'active' : ''}`}
+                      style={{ color: roles.PM.color, borderColor: activeRole === 'PM' ? roles.PM.color : 'transparent' }}
+                      onClick={() => setActiveRole('PM')}
+                    >
+                      PM
+                    </button>
+                  </div>
+                  <div className="color-picker-group">
+                    <label>PF Color</label>
+                    <input 
+                      type="color" 
+                      value={roles.PF.color}
+                      onChange={(e) => setRoles(prev => ({
+                        ...prev,
+                        PF: { ...prev.PF, color: e.target.value }
+                      }))}
+                    />
+                  </div>
+                  <div className="color-picker-group">
+                    <label>PM Color</label>
+                    <input 
+                      type="color" 
+                      value={roles.PM.color}
+                      onChange={(e) => setRoles(prev => ({
+                        ...prev,
+                        PM: { ...prev.PM, color: e.target.value }
+                      }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="section">
+                  <div className="section-title">Steps</div>
+                  {Object.entries(roles).map(([roleName, role]) => (
+                    <div key={roleName}>
+                      <strong style={{ color: role.color }}>{roleName}</strong>
+                      <div className="step-list">
+                        {role.steps.map((step, index) => (
+                          <div 
+                            key={index}
+                            className={`step-item ${selectedStep?.role === roleName && selectedStep?.index === index ? 'selected' : ''}`}
+                            style={{ borderLeftColor: role.color }}
+                            onClick={() => setSelectedStep({ role: roleName, index })}
+                          >
+                            <div className="step-header">
+                              <span className="step-number" style={{ color: role.color }}>
+                                {roleName}-{index + 1}
+                              </span>
+                              <button 
+                                className="step-delete"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteStep(roleName, index);
+                                }}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                            {selectedStep?.role === roleName && selectedStep?.index === index ? (
+                              <input 
+                                className="step-edit-input"
+                                value={step.text}
+                                onChange={(e) => updateStepText(roleName, index, e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            ) : (
+                              <div className="step-name">{step.text}</div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            <div className="section">
+              <div className="section-title">Templates</div>
+              <button className="btn" onClick={saveTemplate}>
+                Save as Template
+              </button>
+              <div className="template-list">
+                {templates.map(template => (
+                  <div key={template.id} className="template-item">
+                    <span onClick={() => loadTemplate(template)} style={{ flex: 1, cursor: 'pointer' }}>
+                      {template.name}
+                    </span>
+                    <button 
+                      className="template-delete"
+                      onClick={() => deleteTemplate(template.id)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="section">
+              <div className="section-title">Export</div>
+              <button className="btn btn-primary" onClick={exportPDF}>
+                Export PDF (Image + Text)
+              </button>
+              <button className="btn" onClick={exportImage}>
+                Export Image Only
+              </button>
+              <button className="btn" onClick={exportText}>
+                Export Text
+              </button>
+              <button className="btn" onClick={exportLatex}>
+                Export LaTeX
+              </button>
+            </div>
+
+            <button className="btn" onClick={() => setShowHelp(true)}>
+              Shortcuts
+            </button>
+          </div>
+
+          <div className="main-canvas-area">
+            <div className="zoom-controls">
+              <div className="zoom-display">{Math.round(zoom * 100)}%</div>
+              <button className="zoom-btn" onClick={() => setZoom(prev => Math.min(5, prev * 1.2))}>
+                +
+              </button>
+              <button className="zoom-btn" onClick={() => setZoom(prev => Math.max(0.1, prev * 0.8))}>
+                −
+              </button>
+              <button 
+                className="zoom-btn" 
+                onClick={() => {
+                  setZoom(1);
+                  setPan({ x: 0, y: 0 });
+                }}
+                style={{ fontSize: '12px', height: 'auto' }}
+              >
+                Reset
+              </button>
+            </div>
+
+            <div 
+              ref={containerRef}
+              className={`canvas-container ${isPanning ? 'panning' : ''}`}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              onWheel={handleWheel}
+              onContextMenu={(e) => e.preventDefault()}
+            >
+              <canvas 
+                ref={canvasRef}
+                onClick={handleCanvasClick}
+              />
+            </div>
+          </div>
+
+          {showHelp && (
+            <div className="modal-overlay" onClick={() => setShowHelp(false)}>
+              <div className="modal" onClick={(e) => e.stopPropagation()}>
+                <button className="modal-close" onClick={() => setShowHelp(false)}>×</button>
+                <h2>Workflow & Shortcuts</h2>
+                <h3 style={{ marginTop: '16px', marginBottom: '8px', color: '#fff' }}>Workflow</h3>
+                <ul className="shortcut-list">
+                  <li className="shortcut-item">
+                    <span>1. Add images</span>
+                    <span className="shortcut-key">POSITION MODE</span>
+                  </li>
+                  <li className="shortcut-item">
+                    <span>2. Select image to edit</span>
+                    <span className="shortcut-key">Click on image</span>
+                  </li>
+                  <li className="shortcut-item">
+                    <span>3. Resize (drag corners)</span>
+                    <span className="shortcut-key">Yellow squares</span>
+                  </li>
+                  <li className="shortcut-item">
+                    <span>4. Crop (optional)</span>
+                    <span className="shortcut-key">Crop button → draw area</span>
+                  </li>
+                  <li className="shortcut-item">
+                    <span>5. Move (drag anywhere)</span>
+                    <span className="shortcut-key">Click & Drag</span>
+                  </li>
+                  <li className="shortcut-item">
+                    <span>6. Confirm positions</span>
+                    <span className="shortcut-key">Button in sidebar</span>
+                  </li>
+                  <li className="shortcut-item">
+                    <span>7. Add steps on images</span>
+                    <span className="shortcut-key">ANNOTATE MODE</span>
+                  </li>
+                </ul>
+                <h3 style={{ marginTop: '16px', marginBottom: '8px', color: '#fff' }}>Keyboard Shortcuts</h3>
+                <ul className="shortcut-list">
+                  <li className="shortcut-item">
+                    <span>Add step</span>
+                    <span className="shortcut-key">Click on canvas (Annotate Mode)</span>
+                  </li>
+                  <li className="shortcut-item">
+                    <span>Adjust curve path</span>
+                    <span className="shortcut-key">Drag small dots between steps</span>
+                  </li>
+                  <li className="shortcut-item">
+                    <span>Pan view</span>
+                    <span className="shortcut-key">Shift + Drag or Right Click + Drag</span>
+                  </li>
+                  <li className="shortcut-item">
+                    <span>Zoom</span>
+                    <span className="shortcut-key">Mouse Wheel</span>
+                  </li>
+                  <li className="shortcut-item">
+                    <span>Undo</span>
+                    <span className="shortcut-key">Ctrl + Z</span>
+                  </li>
+                  <li className="shortcut-item">
+                    <span>Redo</span>
+                    <span className="shortcut-key">Ctrl + Y or Ctrl + Shift + Z</span>
+                  </li>
+                  <li className="shortcut-item">
+                    <span>Delete selected step</span>
+                    <span className="shortcut-key">Delete</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {showLatexExport && (
+            <div className="modal-overlay" onClick={() => setShowLatexExport(false)}>
+              <div className="modal" onClick={(e) => e.stopPropagation()}>
+                <button className="modal-close" onClick={() => setShowLatexExport(false)}>×</button>
+                <h2>LaTeX Export</h2>
+                <p>Copy this code and paste it into your Overleaf document:</p>
+                <textarea 
+                  className="export-textarea"
+                  value={latexCode}
+                  readOnly
+                  onClick={(e) => e.target.select()}
+                />
+                <button 
+                  className="btn btn-primary"
+                  onClick={() => {
+                    navigator.clipboard.writeText(latexCode);
+                  }}
+                >
+                  Copy to Clipboard
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>
